@@ -8,16 +8,21 @@ import { createTRPCReact } from '@trpc/react-query';
 import { useState } from 'react';
 import { makeQueryClient } from './query-client';
 import type { AppRouter } from './routers/_app';
+
 export const trpc = createTRPCReact<AppRouter>();
+
 let clientQueryClientSingleton: QueryClient;
+
 function getQueryClient() {
   if (typeof window === 'undefined') {
     // Server: always make a new query client
     return makeQueryClient();
   }
+
   // Browser: use singleton pattern to keep the same query client
   return (clientQueryClientSingleton ??= makeQueryClient());
 }
+
 function getUrl() {
   const base = (() => {
     if (typeof window !== 'undefined') return '';
@@ -27,6 +32,7 @@ function getUrl() {
   })();
   return `${base}/api/trpc`;
 }
+
 export function TRPCProvider(
   props: Readonly<{
     children: React.ReactNode;
