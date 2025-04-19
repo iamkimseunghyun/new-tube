@@ -6,8 +6,48 @@ import { and, eq } from 'drizzle-orm/sql/expressions/conditions';
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
 import { UTApi } from 'uploadthing/server';
+import { workflow } from '@/lib/workflow';
 
 export const videosRouter = createTRPCRouter({
+  generateDescription: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { id: userId } = ctx.user;
+
+      const { workflowRunId } = await workflow.trigger({
+        url: `${process.env.UPSTASH_WORKFLOW_URL}/api/videos/workflows/description`,
+        body: { userId, videoId: input.id },
+        retries: 3,
+      });
+
+      return workflowRunId;
+    }),
+  generateTitle: protectedProcedure
+    .input(z.object({ id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const { id: userId } = ctx.user;
+
+      const { workflowRunId } = await workflow.trigger({
+        url: `${process.env.UPSTASH_WORKFLOW_URL}/api/videos/workflows/title`,
+        body: { userId, videoId: input.id },
+        retries: 3,
+      });
+
+      return workflowRunId;
+    }),
+  generateThumbnail: protectedProcedure
+    .input(z.object({ id: z.string().uuid(), prompt: z.string().min(10) }))
+    .mutation(async ({ ctx, input }) => {
+      const { id: userId } = ctx.user;
+
+      const { workflowRunId } = await workflow.trigger({
+        url: `${process.env.UPSTASH_WORKFLOW_URL}/api/videos/workflows/thumbnail`,
+        body: { userId, videoId: input.id, prompt: input.prompt },
+        retries: 3,
+      });
+
+      return workflowRunId;
+    }),
   restoreThumbnail: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -46,7 +86,8 @@ export const videosRouter = createTRPCRouter({
         throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR' });
       }
 
-      const { key: thumbnailKey, url: thumbnailUrl } = uploadedThumbnail.data;
+      const { key: thumbnailKey, ufsUrl: thumbnailUrl } =
+        uploadedThumbnail.data;
 
       const [updatedVideo] = await db
         .update(videos)
@@ -105,7 +146,7 @@ export const videosRouter = createTRPCRouter({
       new_asset_settings: {
         passthrough: userId,
         playback_policies: ['public'],
-        input: [
+        inputs: [
           {
             generated_subtitles: [
               {
