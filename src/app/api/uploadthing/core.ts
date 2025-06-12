@@ -36,16 +36,16 @@ export const ourFileRouter = {
       if (!user) throw new UploadThingError('Unauthorized');
 
       const [existingVideo] = await db
-        .select({ thumbailKey: videos.thumbnailKey })
+        .select({ thumbnailKey: videos.thumbnailKey })
         .from(videos)
         .where(and(eq(videos.id, input.videoId), eq(videos.userId, user.id)));
 
       if (!existingVideo) throw new UploadThingError({ code: 'NOT_FOUND' });
 
-      if (existingVideo.thumbailKey) {
+      if (existingVideo.thumbnailKey) {
         const utapi = new UTApi();
 
-        await utapi.deleteFiles(existingVideo.thumbailKey);
+        await utapi.deleteFiles(existingVideo.thumbnailKey);
         await db
           .update(videos)
           .set({ thumbnailKey: null, thumbnailUrl: null })
